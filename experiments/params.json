@@ -1,0 +1,1 @@
+{"n_hidden": 128, "n_epochs": 100000, "learning_rate": 0.005, "n_categories": 18, "all_categories": ["Arabic", "Chinese", "Czech", "Dutch", "English", "French", "German", "Greek", "Irish", "Italian", "Japanese", "Korean", "Polish", "Portuguese", "Russian", "Scottish", "Spanish", "Vietnamese"]}
