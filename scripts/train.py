@@ -160,7 +160,7 @@ if __name__ == "__main__":
     start = time.time()
 
     rnn = RNN(input_size=N_LETTERS, hidden_size=N_HIDDEN, output_size=n_categories)
-    optimizer = torch.optim.SGD(rnn.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.SGD(rnn.parameters(), lr=LEARNING_RATE)  # type: ignore
     criterion = nn.NLLLoss()
 
     for epoch in range(1, N_EPOCHS + 1):

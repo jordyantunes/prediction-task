@@ -1,23 +1,25 @@
+import json
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
+
 import torch
 from torch.autograd import Variable
-import json
-from scripts.train import (
-    N_LETTERS,
-    lineToTensor,
-    RNN,
-)
+
+from scripts.train import N_LETTERS, RNN, lineToTensor
 
 
-# Just return an output given a line
-def evaluate(line_tensor, weights_file: Path, params):
+def load_model(weights_file: Path, params: Dict) -> RNN:
     rnn = RNN(
         input_size=N_LETTERS,
         hidden_size=params["n_hidden"],
         output_size=params["n_categories"],
     )
     rnn.load_state_dict(torch.load(weights_file, weights_only=True))
+    return rnn
+
+
+# Just return an output given a line
+def evaluate(rnn: RNN, line_tensor):
     rnn.eval()
     hidden = rnn.initHidden()
 
@@ -28,14 +30,19 @@ def evaluate(line_tensor, weights_file: Path, params):
 
 
 def predict(
-    name, n_predictions: int, weights_file: Path, params_file: Path
+    name,
+    n_predictions: int,
+    params: Dict,
+    rnn: Optional[RNN] = None,
+    weights_file: Optional[Path] = None,
 ) -> List[Tuple[torch.Tensor, str]]:
-    with open(params_file, "r") as f:
-        params = json.load(f)
+    if rnn is None:
+        if weights_file is None:
+            raise ValueError("Either rnn or weights_file must be provided")
+        rnn = load_model(weights_file, params)
+
     print(f"{N_LETTERS=}, {params['n_hidden']=}, {params['n_categories']=}")
-    output = evaluate(
-        Variable(lineToTensor(name)), weights_file=weights_file, params=params
-    )
+    output = evaluate(rnn, Variable(lineToTensor(name)))
 
     # Get top N categories
     topv, topi = output.data.topk(n_predictions, 1, True)
@@ -72,6 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("name", type=str, help="name to classify")
     args = parser.parse_args()
 
-    predict(
-        name=args.name, n_predictions=args.n, weights_file=args.w, params_file=args.p
-    )
+    with open(args.p, "r") as f:
+        params = json.load(f)
+
+    predict(name=args.name, n_predictions=args.n, weights_file=args.w, params=params)

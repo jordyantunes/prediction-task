@@ -1,30 +1,37 @@
+import json
+import logging
 import os
-from typing import List
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Dict
 
 import uvicorn
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
 
-from scripts.predict import predict
+from scripts.predict import load_model, predict
+from src.models import PredictionRequest, PredictionResponse
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "experiments/weights.pt")
 PARAMS_PATH = os.environ.get("MODEL_PATH", "experiments/params.json")
 
-app = FastAPI()
+model_params: Dict = None  # type: ignore
+rnn = None
 
 
-class PredictionRequest(BaseModel):
-    name: str = Field(..., description="Name to classify")
-    n_predictions: int = Field(default=3, description="Number of classes to return")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global rnn, model_params
+    # Load the ML model
+    with open(PARAMS_PATH, "r") as f:
+        model_params = json.load(f)
+    rnn = load_model(Path(MODEL_PATH), model_params)
+    logging.info("Model loaded")
+    yield
+    # Clean up the ML models and release the resources
+    del rnn
 
 
-class PredictionItem(BaseModel):
-    value: float
-    category: str
-
-
-class PredictionResponse(BaseModel):
-    prediction: List[PredictionItem]
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -35,15 +42,15 @@ def read_root():
 @app.post("/predict")
 def predict_text(request: PredictionRequest) -> PredictionResponse:
     prediction = predict(
+        rnn=rnn,
         name=request.name,
         n_predictions=request.n_predictions,
-        weights_file=MODEL_PATH,
-        params_file=PARAMS_PATH,
+        params=model_params,
     )
     prediction = [
         {"value": value.item(), "category": category} for value, category in prediction
     ]
-    return {"prediction": prediction}
+    return {"prediction": prediction}  # type: ignore
 
 
 if __name__ == "__main__":

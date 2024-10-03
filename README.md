@@ -11,8 +11,8 @@ minikube start
 Install k8s ingress
 
 ```bash
-minikube addons enable ingress
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+minikube addons enable ingress
 ```
 
 Build container image and publish to repository
@@ -56,7 +56,18 @@ Expected response:
 
 You should also be able to access the API documentation on `http://name-prediction.local/docs`
 
+# Explanation
 
+- Created API using FastAPI
+- Train script depended on the data to load the models
+    - removed dependency by saving the parameters and loading only them
+- FastApi should load the model in memory when it starts
+    - Stops reading from disk with each request, keeps model in memory
+    - Lower latency
+- Could train model on K8s with jobs
+    - Persistant volume to save artifacts
+    - Prediction script could load from this volume
+    - MLFlow for experiment tracking. Choose best or latest model
 ----
 
 
